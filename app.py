@@ -61,7 +61,6 @@ def index():
                 <div class="buttons">
                     <a href="/checkin">✅ Check-in</a>
                     <a href="/checkout">🚪 Check-out</a>
-                    <a href="/admin" class="admin">👨‍💼 Painel Admin</a>
                 </div>
             </div>
         </body>
@@ -82,3 +81,4 @@ def pagina_checkout():
 if __name__ == '__main__':
 
     app.run(debug=True, host='0.0.0.0', port=5001)
+
