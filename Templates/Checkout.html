@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-out de Visitantes - Sistema Profissional</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .animate-slide-in { animation: slideIn 0.5s ease-out; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-scale-in { animation: scaleIn 0.4s ease-out; }
+        .input-field:focus { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.3); }
+        .input-field { transition: all 0.3s ease; }
+        .gradient-text { background: linear-gradient(135deg, #f43f5e 0%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        .visitor-card { transition: all 0.3s ease; }
+        .visitor-card.found { border-color: #f59e0b; box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.4); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- INSIRA AQUI A URL DO SEU WEB APP DO GOOGLE APPS SCRIPT ---
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJcV42g1rV43HnhJZUCus_o2cCVmHX-0hNhtH8i4CagFwd9pimqVNnPftgHSpXSQjsaw/exec';
+
+        // Componentes de Ícones (Mantidos iguais)
+        const LogOut = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+        );
+        const User = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        );
+        const Building2 = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M6 3h12v18H6z"></path></svg>
+        );
+        const Clock = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        );
+        const CheckCircle = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        );
+        const Search = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+        );
+        const AlertCircle = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        );
+        const Key = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m15.6 15.6-6.819-6.819c-1.579-1.58-1.579-4.14 0-5.72 1.58-1.579 4.14-1.579 5.72 0l6.819 6.819-2.81 2.81zm-8.28-2.61a3.5 3.5 0 0 0-4.95 4.95l8.28 8.28a3.5 3.5 0 0 0 4.95-4.95l-8.28-8.28z"></path></svg>
+        );
+
+        // Componente Principal
+        function VisitorCheckout() {
+            // Alterado para 'codeInput' para buscar pelo código
+            const [codeInput, setCodeInput] = useState('');
+            // Armazena o visitante encontrado pelo código
+            const [targetVisitor, setTargetVisitor] = useState(null); 
+            const [loading, setLoading] = useState(false);
+            const [success, setSuccess] = useState(false);
+            const [searchError, setSearchError] = useState(null); // Novo estado para erros de busca
+
+            // Removida a lógica de busca inicial (useEffect)
+
+            // Novo: Função para buscar o visitante pelo código
+const handleCodeSearch = async () => {
+    setLoading(true);
+    setTargetVisitor(null);
+    setSearchError(null);
+    
+    const rawCodeInput = codeInput.trim();
+
+    // Validação simples
+    if (rawCodeInput.length !== 6 || isNaN(rawCodeInput)) {
+        setSearchError('O código deve ter 6 dígitos numéricos.');
+        setLoading(false);
+        return;
+    }
+
+    try {
+        // 1. Busca TODOS os visitantes ativos (Como seu GAS doGet funciona)
+        const response = await fetch(SCRIPT_URL);
+        const data = await response.json();
+        
+        const activeVisitors = Array.isArray(data) ? data : [];
+
+        // 2. Busca LOCALMENTE pelo código correspondente
+        const codeToSearch = rawCodeInput;
+        
+        // CORREÇÃO APLICADA: Converte o código da planilha (visitor.codigo) para String 
+        // antes de comparar com o código de busca.
+        const foundVisitor = activeVisitors.find(visitor => 
+            String(visitor.codigo) === codeToSearch
+        );
+
+        if (foundVisitor) {
+            setTargetVisitor(foundVisitor);
+            setSearchError(null);
+        } else {
+            setSearchError('Código de acesso não encontrado. Verifique o código digitado.');
+        }
+
+    } catch (error) {
+        console.error("Erro ao buscar visitantes:", error);
+        setSearchError("Erro de conexão ao buscar. Verifique a URL do Script.");
+    } finally {
+        setLoading(false);
+    }
+};
+
+            const handleCheckout = async () => {
+                // Usa targetVisitor
+                if (!targetVisitor) {
+                    alert('Nenhum visitante encontrado para check-out.');
+                    return;
+                }
+
+                setLoading(true);
+
+                try {
+                    // Usando targetVisitor
+                    const checkoutParams = new URLSearchParams({
+                        action: 'checkout',
+                        row: targetVisitor.row,
+                        nome: targetVisitor.nome
+                    });
+                    
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: checkoutParams
+                    });
+                    
+                    const result = await response.json(); 
+
+                    if (result.status === 'SUCCESS') {
+                        setSuccess(true);
+
+                        // Reseta o estado após sucesso
+                        setTimeout(() => {
+                            setCodeInput('');
+                            setTargetVisitor(null);
+                            setSuccess(false);
+                        }, 3000);
+                    } else {
+                         // Trata o erro retornado pelo Apps Script
+                        throw new Error(result.message || 'Erro desconhecido ao fazer check-out');
+                    }
+
+                } catch (error) {
+                    console.error('Erro ao fazer check-out:', error);
+                    alert(`Erro de conexão ao realizar check-out: ${error.message || 'Verifique a URL do Script.'}`);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            // Função auxiliar para renderizar o cartão de visitante
+            const VisitorCard = ({ visitor }) => (
+                <div
+                    key={visitor.row}
+                    className="visitor-card found p-5 border-2 rounded-xl border-amber-500 bg-white hover:border-amber-600 animate-slide-in"
+                >
+                    <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                                <User size={20} className="mr-2 text-rose-600" />
+                                <h3 className="text-xl font-bold text-gray-800">{visitor.nome}</h3>
+                            </div>
+                            <div className="space-y-1 text-sm text-gray-600 ml-7">
+                                <div className="flex items-center">
+                                    <Building2 size={16} className="mr-2" />
+                                    {visitor.empresa}
+                                </div>
+                                <div className="flex items-center">
+                                    <Clock size={16} className="mr-2" />
+                                    Check-in: <strong>{visitor.checkin}</strong>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-2">
+                                    Setor: {visitor.setor} • Resp: {visitor.responsavel}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-center justify-center ml-4">
+                            <Key size={32} className="text-amber-600" />
+                            <span className="text-xs font-bold text-amber-700 mt-1">Visitante Encontrado</span>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // --- Renderização (JSX) ---
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-rose-500 via-red-500 to-pink-500 flex items-center justify-center p-4 relative overflow-hidden">
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <div className="absolute -top-40 -right-40 w-80 h-80 bg-white opacity-10 rounded-full blur-3xl"></div>
+                        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white opacity-10 rounded-full blur-3xl"></div>
+                    </div>
+
+                    <div className="w-full max-w-2xl relative z-10 animate-slide-in">
+                        {/* Header */}
+                        <div className="glass-effect rounded-t-3xl shadow-2xl p-8 text-center">
+                            <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-rose-500 to-red-600 rounded-full mb-4 shadow-lg">
+                                <LogOut size={48} className="text-white" />
+                            </div>
+                            <h1 className="text-4xl font-bold gradient-text mb-3">Check-out de Visitantes</h1>
+                            <p className="text-gray-600 text-lg">Informe o código de acesso para registrar a saída</p>
+                        </div>
+
+                        {/* Conteúdo */}
+                        <div className="glass-effect rounded-b-3xl shadow-2xl p-8">
+                            {success ? (
+                                <div className="text-center py-16 animate-scale-in">
+                                    <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full mb-6 shadow-2xl">
+                                        <CheckCircle size={64} className="text-white" />
+                                    </div>
+                                    <h2 className="text-4xl font-bold text-green-600 mb-4">Check-out Confirmado!</h2>
+                                    <p className="text-gray-600 text-xl mb-3">
+                                        Saída registrada com sucesso.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Campo de Código e Busca */}
+                                    <div className="flex flex-col gap-4">
+                                        <label className="flex items-center text-sm font-semibold text-gray-700 mb-0">
+                                            <Key size={20} className="mr-2 text-rose-600" />
+                                            Código de Acesso do Visitante (6 dígitos)
+                                        </label>
+                                        <div className="flex gap-4">
+                                            <input
+                                                type="number"
+                                                value={codeInput}
+                                                onChange={(e) => setCodeInput(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleCodeSearch();
+                                                }}
+                                                className="w-full px-4 py-3 text-2xl font-mono text-center tracking-widest border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                                                placeholder="123456"
+                                                maxLength="6"
+                                            />
+                                            <button 
+                                                onClick={handleCodeSearch}
+                                                disabled={loading || codeInput.length !== 6}
+                                                className={`px-6 py-3 rounded-xl font-medium transition flex items-center shadow-md ${
+                                                    loading || codeInput.length !== 6 
+                                                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                                                        : 'bg-rose-500 hover:bg-rose-600 text-white'
+                                                }`}
+                                            >
+                                                {loading ? (
+                                                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                    </svg>
+                                                ) : (
+                                                    <Search size={24} />
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Mensagem de Erro de Busca */}
+                                    {searchError && (
+                                        <div className="py-3 px-4 bg-red-100 border border-red-400 text-red-700 rounded-xl flex items-center animate-fade-in">
+                                            <AlertCircle size={20} className="mr-2" />
+                                            {searchError}
+                                        </div>
+                                    )}
+
+                                    {/* Cartão do Visitante Encontrado */}
+                                    {targetVisitor && (
+                                        <div className="space-y-4 pt-4 border-t border-gray-200">
+                                            <p className="text-lg font-semibold text-gray-700">Visitante para Check-out:</p>
+                                            <VisitorCard visitor={targetVisitor} />
+                                            
+                                            {/* Botão de Check-out */}
+                                            <button
+                                                onClick={handleCheckout}
+                                                disabled={loading || !targetVisitor}
+                                                className={`w-full py-4 rounded-xl font-bold text-lg text-white transition-all duration-300 shadow-lg transform hover:scale-105 hover:shadow-xl ${
+                                                    loading || !targetVisitor
+                                                        ? 'bg-gray-400 cursor-not-allowed' 
+                                                        : 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700'
+                                                }`}
+                                            >
+                                                {loading ? (
+                                                    <span className="flex items-center justify-center">
+                                                        <svg className="animate-spin h-6 w-6 mr-3" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                        </svg>
+                                                        Registrando Saída...
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center justify-center">
+                                                        <LogOut size={24} className="mr-2" />
+                                                        {`Confirmar Saída de ${targetVisitor.nome.split(' ')[0]}`}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="text-center mt-6 text-white">
+                            <p className="text-sm font-medium opacity-90 drop-shadow-lg">
+                                🔒 Sistema de Controle de Visitas - Check-out Seguro
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<VisitorCheckout />);
+    </script>
+</body>
+</html>
