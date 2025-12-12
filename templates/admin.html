@@ -22,7 +22,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPoZeorlA0zRjCQyDS3zycw_Kj5Yi1rf9dPoPUhCLs1DNQFNZlNbx-u4jrhFE3ozXWsg/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPoZeorlA0zRjCQyDS3zycw_Kj5Yi1rf9dPoPUhCLs1DNQFNZlNbx-u4jrhFE3ozXWsg/exec'; 
 
         // Ícones
         const DollarSign = ({ size = 24, className = "" }) => (
@@ -144,7 +144,7 @@
                     console.error('Erro ao carregar visitantes:', error);
                     alert('Erro ao carregar dados. Verifique a conexão.');
                 } finally {
-                    setLoading(false);
+                    setLoading(false); 
                 }
             };
 
@@ -160,16 +160,18 @@
                 }
             };
 
+            // ✅ FUNÇÃO CORRIGIDA: Usa FormData para evitar erro 405 CORS
             const handleSaveRegras = async () => {
                 setSavingRules(true);
                 try {
                     const formData = new FormData();
                     formData.append('action', 'salvar_regras');
-                    formData.append('regras', JSON.stringify(regras));
+                    // Converter o array de regras para uma string JSON antes de enviar no FormData
+                    formData.append('regras', JSON.stringify(regras)); 
 
                     const response = await fetch(SCRIPT_URL, {
                         method: 'POST',
-                        body: formData
+                        body: formData // Sem headers JSON
                     });
 
                     const result = await response.json();
@@ -196,7 +198,7 @@
                 setPaymentData({ codigoDocumento: '', comprovante: null });
             };
 
-            // 👇 NOVA FUNÇÃO: Envia para validação
+ // 🎯 FUNÇÃO CORRIGIDA: Converte o arquivo para base64 antes de enviar
             const handleEnviarParaValidacao = async () => {
                 if (!paymentData.codigoDocumento || !paymentData.comprovante) {
                     alert('⚠️ Preencha todos os campos!');
@@ -206,19 +208,25 @@
                 setProcessing(prev => ({ ...prev, [selectedVisitor.row]: true }));
 
                 try {
-                    // Converter arquivo para base64
+                    // ✅ CONVERSÃO DO ARQUIVO PARA BASE64
                     const base64 = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result.split(',')[1]);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(paymentData.comprovante);
-                    });
+    const reader = new FileReader();
+    reader.onload = () => {
+        const result = reader.result;
+        // Remove "data:*/*;base64," do início
+        const cleanedBase64 = result.split(',')[1];
+        resolve(cleanedBase64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(paymentData.comprovante);
+});
 
                     const formData = new FormData();
                     formData.append('action', 'criar_validacao_pagamento');
                     formData.append('row', selectedVisitor.row);
                     formData.append('codigoDocumento', paymentData.codigoDocumento);
-                    formData.append('comprovante', base64);
+                    formData.append('comprovanteBase64', base64); // ⚡ nome que Apps Script espera
+
                     formData.append('nomeArquivo', paymentData.comprovante.name);
                     formData.append('fornecedor', selectedVisitor.empresa);
                     formData.append('valor', selectedVisitor.valor);
@@ -655,5 +663,3 @@
     </script>
 </body>
 </html>
-
-
