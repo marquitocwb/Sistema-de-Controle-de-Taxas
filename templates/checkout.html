@@ -147,12 +147,12 @@ const handleCodeSearch = async () => {
                     if (result.status === 'SUCCESS') {
                         setSuccess(true);
 
-                        // Reseta o estado após sucesso
-                        setTimeout(() => {
-                            setCodeInput('');
-                            setTargetVisitor(null);
-                            setSuccess(false);
-                        }, 3000);
+                        // Mantive o timeout comentado para que o usuário possa clicar em Voltar na tela de sucesso.
+                        // setTimeout(() => {
+                        //     setCodeInput('');
+                        //     setTargetVisitor(null);
+                        //     setSuccess(false);
+                        // }, 3000); 
                     } else {
                          // Trata o erro retornado pelo Apps Script
                         throw new Error(result.message || 'Erro desconhecido ao fazer check-out');
@@ -218,7 +218,7 @@ const handleCodeSearch = async () => {
                             <p className="text-gray-600 text-lg">Informe o código de acesso para registrar a saída</p>
                         </div>
 
-                        {/* Conteúdo */}
+                        {/* Conteúdo (principal) */}
                         <div className="glass-effect rounded-b-3xl shadow-2xl p-8">
                             {success ? (
                                 <div className="text-center py-16 animate-scale-in">
@@ -229,6 +229,8 @@ const handleCodeSearch = async () => {
                                     <p className="text-gray-600 text-xl mb-3">
                                         Saída registrada com sucesso.
                                     </p>
+                                    
+                                    {/* O botão foi removido daqui */}
                                 </div>
                             ) : (
                                 <div className="space-y-6">
@@ -316,6 +318,14 @@ const handleCodeSearch = async () => {
                             )}
                         </div>
 
+                        {/* NOVO LOCAL DEFINITIVO: Botão de Voltar, sempre visível abaixo da caixa de conteúdo */}
+                        <button
+                            onClick={() => window.location.href = '/'}
+                            className="mt-6 w-full py-4 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 hover:shadow-xl"
+                        >
+                            🏠 Voltar para Página Principal
+                        </button>
+                        
                         <div className="text-center mt-6 text-white">
                             <p className="text-sm font-medium opacity-90 drop-shadow-lg">
                                 🔒 Sistema de Controle de Visitas - Check-out Seguro
