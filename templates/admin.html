@@ -104,6 +104,14 @@
             </svg>
         );
 
+        const Upload = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+        );
+
         function AdminPanel() {
             const [visitors, setVisitors] = useState([]);
             const [loading, setLoading] = useState(true);
@@ -112,6 +120,14 @@
             const [showConfig, setShowConfig] = useState(false);
             const [regras, setRegras] = useState([]);
             const [savingRules, setSavingRules] = useState(false);
+            
+            // 👇 NOVOS STATES PARA MODAL DE PAGAMENTO
+            const [showPaymentModal, setShowPaymentModal] = useState(false);
+            const [selectedVisitor, setSelectedVisitor] = useState(null);
+            const [paymentData, setPaymentData] = useState({
+                codigoDocumento: '',
+                comprovante: null
+            });
 
             useEffect(() => {
                 loadVisitors();
@@ -147,7 +163,6 @@
             const handleSaveRegras = async () => {
                 setSavingRules(true);
                 try {
-                    // 🔧 CORREÇÃO: Usar FormData em vez de URLSearchParams
                     const formData = new FormData();
                     formData.append('action', 'salvar_regras');
                     formData.append('regras', JSON.stringify(regras));
@@ -162,7 +177,7 @@
                     if (result.status === 'SUCCESS') {
                         alert('✅ Regras salvas com sucesso!');
                         setShowConfig(false);
-                        loadRegras(); // Recarrega as regras para confirmar
+                        loadRegras();
                     } else {
                         alert('❌ Erro ao salvar regras: ' + (result.message || 'Erro desconhecido'));
                     }
@@ -174,17 +189,40 @@
                 }
             };
 
-            const handleMarcarPago = async (visitor) => {
-                if (!confirm(`Confirmar pagamento de R$ ${visitor.valor.toFixed(2).replace('.', ',')} de ${visitor.nome}?`)) {
+            // 👇 NOVA FUNÇÃO: Abre modal de pagamento
+            const handleMarcarPago = (visitor) => {
+                setSelectedVisitor(visitor);
+                setShowPaymentModal(true);
+                setPaymentData({ codigoDocumento: '', comprovante: null });
+            };
+
+            // 👇 NOVA FUNÇÃO: Envia para validação
+            const handleEnviarParaValidacao = async () => {
+                if (!paymentData.codigoDocumento || !paymentData.comprovante) {
+                    alert('⚠️ Preencha todos os campos!');
                     return;
                 }
 
-                setProcessing(prev => ({ ...prev, [visitor.row]: true }));
+                setProcessing(prev => ({ ...prev, [selectedVisitor.row]: true }));
 
                 try {
+                    // Converter arquivo para base64
+                    const base64 = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(paymentData.comprovante);
+                    });
+
                     const formData = new FormData();
-                    formData.append('action', 'marcar_pago');
-                    formData.append('row', visitor.row);
+                    formData.append('action', 'criar_validacao_pagamento');
+                    formData.append('row', selectedVisitor.row);
+                    formData.append('codigoDocumento', paymentData.codigoDocumento);
+                    formData.append('comprovante', base64);
+                    formData.append('nomeArquivo', paymentData.comprovante.name);
+                    formData.append('fornecedor', selectedVisitor.empresa);
+                    formData.append('valor', selectedVisitor.valor);
+                    formData.append('nome', selectedVisitor.nome);
 
                     const response = await fetch(SCRIPT_URL, {
                         method: 'POST',
@@ -194,16 +232,18 @@
                     const result = await response.json();
 
                     if (result.status === 'SUCCESS') {
-                        alert('✅ Pagamento registrado com sucesso!');
+                        alert(`✅ Link de validação enviado!\n\n📋 Código: ${result.codigo}\n\nO fornecedor receberá um email para confirmar o pagamento.`);
+                        setShowPaymentModal(false);
+                        setPaymentData({ codigoDocumento: '', comprovante: null });
                         loadVisitors();
                     } else {
-                        alert('❌ Erro ao registrar pagamento.');
+                        alert('❌ Erro ao criar validação: ' + (result.message || 'Erro desconhecido'));
                     }
                 } catch (error) {
                     console.error('Erro:', error);
-                    alert('Erro ao processar pagamento.');
+                    alert('❌ Erro ao processar: ' + error.message);
                 } finally {
-                    setProcessing(prev => ({ ...prev, [visitor.row]: false }));
+                    setProcessing(prev => ({ ...prev, [selectedVisitor.row]: false }));
                 }
             };
 
@@ -352,6 +392,87 @@
                                     >
                                         Cancelar
                                     </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 👇 MODAL DE PAGAMENTO */}
+                        {showPaymentModal && selectedVisitor && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+                                <div className="glass-effect rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                                    <h3 className="text-2xl font-bold text-gray-800 mb-2">Registrar Pagamento</h3>
+                                    <p className="text-gray-600 mb-4">
+                                        Visitante: <strong>{selectedVisitor.nome}</strong><br/>
+                                        Valor: <strong className="text-green-600">R$ {selectedVisitor.valor.toFixed(2).replace('.', ',')}</strong>
+                                    </p>
+                                    
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                📋 Código do Documento
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={paymentData.codigoDocumento}
+                                                onChange={(e) => setPaymentData({...paymentData, codigoDocumento: e.target.value})}
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                                placeholder="Ex: NF-12345, PIX-67890"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                📎 Comprovante de Pagamento
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*,application/pdf"
+                                                    onChange={(e) => setPaymentData({...paymentData, comprovante: e.target.files[0]})}
+                                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                                />
+                                                {paymentData.comprovante && (
+                                                    <p className="mt-2 text-sm text-green-600 flex items-center gap-2">
+                                                        <CheckCircle size={16} />
+                                                        {paymentData.comprovante.name}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-gray-700">
+                                            <strong>ℹ️ Importante:</strong> O fornecedor receberá um email com link para validar este pagamento.
+                                        </div>
+
+                                        <div className="flex gap-3 pt-2">
+                                            <button
+                                                onClick={handleEnviarParaValidacao}
+                                                disabled={!paymentData.codigoDocumento || !paymentData.comprovante || processing[selectedVisitor.row]}
+                                                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {processing[selectedVisitor.row] ? (
+                                                    <>
+                                                        <RefreshCw size={20} className="animate-spin" />
+                                                        Enviando...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Upload size={20} />
+                                                        Enviar para Validação
+                                                    </>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowPaymentModal(false);
+                                                    setPaymentData({ codigoDocumento: '', comprovante: null });
+                                                }}
+                                                className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -532,3 +653,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<AdminPanel />);
     </script>
+</body>
+</html>
