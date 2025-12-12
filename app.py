@@ -77,8 +77,12 @@ def pagina_checkin():
 def pagina_checkout():
     return render_template('checkout.html')
 
-
+# Página de Admin (CORRIGIDA)
+@app.route('/admin')
+def pagina_admin(): # <-- Função renomeada
+    return render_template('admin.html')
 if __name__ == '__main__':
 
     app.run(debug=True, host='0.0.0.0', port=5001)
+
 
