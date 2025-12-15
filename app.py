@@ -81,8 +81,13 @@ def pagina_checkout():
 @app.route('/admin')
 def pagina_admin(): # <-- Função renomeada
     return render_template('admin.html')
+
+@app.route('/confirmacao')
+def pagina_admin(): # <-- Função renomeada
+    return render_template('confirmacao.html')
 if __name__ == '__main__':
 
     app.run(debug=True, host='0.0.0.0', port=5001)
+
 
 
